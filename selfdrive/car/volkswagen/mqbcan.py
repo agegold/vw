@@ -59,6 +59,18 @@ def acc_hud_status_value(main_switch_on, acc_faulted, long_active):
 def create_acc_accel_control(packer, bus, acc_type, enabled, accel, acc_control, stopping, starting, esp_hold):
   commands = []
 
+  jerk_limit = 4.0 if enabled else 0  # m/s3
+
+  if starting:
+    acc_hold_type = 4  # hold release / startup
+    jerk_limit = 0.5
+  elif esp_hold:
+    acc_hold_type = 3  # hold standby
+  elif stopping:
+    acc_hold_type = 1  # hold request
+  else:
+    acc_hold_type = 0
+
   acc_06_values = {
     "ACC_Typ": acc_type,
     "ACC_Status_ACC": acc_control,
@@ -66,21 +78,12 @@ def create_acc_accel_control(packer, bus, acc_type, enabled, accel, acc_control,
     "ACC_Sollbeschleunigung_02": accel if enabled else 3.01,
     "ACC_zul_Regelabw_unten": 0.2,  # TODO: dynamic adjustment of comfort-band
     "ACC_zul_Regelabw_oben": 0.2,  # TODO: dynamic adjustment of comfort-band
-    "ACC_neg_Sollbeschl_Grad_02": 4.0 if enabled else 0,  # TODO: dynamic adjustment of jerk limits
-    "ACC_pos_Sollbeschl_Grad_02": 4.0 if enabled else 0,  # TODO: dynamic adjustment of jerk limits
+    "ACC_neg_Sollbeschl_Grad_02": jerk_limit,
+    "ACC_pos_Sollbeschl_Grad_02": jerk_limit,
     "ACC_Anfahren": starting,
     "ACC_Anhalten": stopping,
   }
   commands.append(packer.make_can_msg("ACC_06", bus, acc_06_values))
-
-  if starting:
-    acc_hold_type = 4  # hold release / startup
-  elif esp_hold:
-    acc_hold_type = 3  # hold standby
-  elif stopping:
-    acc_hold_type = 1  # hold request
-  else:
-    acc_hold_type = 0
 
   acc_07_values = {
     "ACC_Anhalteweg": 0.4 if stopping else 20.46,  # Distance to stop (stopping coordinator handles terminal roll-out)
