@@ -47,7 +47,7 @@ class CarController:
         new_steer = int(round(actuators.steer * self.CCP.STEER_MAX))
         apply_steer = apply_driver_steer_torque_limits(new_steer, self.apply_steer_last, CS.out.steeringTorque, self.CCP)
         self.hcaEnabledFrameCount += 1
-        if abs(apply_steer) <= 0.6:
+        if abs(apply_steer) <= 60:
           self.hcaLowTorqueCount += 1
         else:
           self.hcaLowTorqueCount = 0
