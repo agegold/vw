@@ -228,6 +228,7 @@ env = Environment(
 
 if arch == "Darwin":
   env['RPATHPREFIX'] = "-rpath "
+  env.PrependENVPath('PATH', '/opt/homebrew/opt/llvm/bin:/opt/homebrew/bin')
 
 if GetOption('compile_db'):
   env.CompilationDatabase('compile_commands.json')
@@ -395,14 +396,15 @@ SConscript(['rednose/SConscript'])
 
 # Build system services
 SConscript([
-  'system/camerad/SConscript',
   'system/clocksd/SConscript',
   'system/proclogd/SConscript',
   'system/ubloxd/SConscript',
 ])
 if arch != "Darwin":
-  SConscript(['system/logcatd/SConscript'])
-
+  SConscript([
+    'system/camerad/SConscript',
+    'system/logcatd/SConscript',
+  ])
 # Build openpilot
 
 # build submodules
@@ -428,7 +430,8 @@ SConscript(['selfdrive/boardd/SConscript'])
 SConscript(['system/loggerd/SConscript'])
 
 SConscript(['selfdrive/locationd/SConscript'])
-SConscript(['system/sensord/SConscript'])
+if arch != "Darwin":
+  SConscript(['system/sensord/SConscript'])
 SConscript(['selfdrive/ui/SConscript'])
 SConscript(['selfdrive/navd/SConscript'])
 
