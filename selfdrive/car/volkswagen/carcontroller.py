@@ -72,7 +72,7 @@ class CarController:
       # Pacify VW Emergency Assist driver inactivity detection by changing its view of driver steering input torque
       # to the greater of actual driver input or 2x openpilot's output (1x openpilot output is not enough to
       # consistently reset inactivity detection on straight level roads). See commaai/openpilot#23274 for background.
-      ea_simulated_torque = apply_steer * 2
+      ea_simulated_torque = clip(apply_steer * 2, -self.CCP.STEER_MAX, self.CCP.STEER_MAX)
       if abs(CS.out.steeringTorque) > abs(ea_simulated_torque):
         ea_simulated_torque = CS.out.steeringTorque
       can_sends.append(self.CCS.create_eps_update(self.packer_pt, CANBUS.cam, CS.eps_stock_values,
