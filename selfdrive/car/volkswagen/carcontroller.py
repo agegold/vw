@@ -75,8 +75,7 @@ class CarController:
       ea_simulated_torque = clip(apply_steer * 2, -self.CCP.STEER_MAX, self.CCP.STEER_MAX)
       if abs(CS.out.steeringTorque) > abs(ea_simulated_torque):
         ea_simulated_torque = CS.out.steeringTorque
-      can_sends.append(self.CCS.create_eps_update(self.packer_pt, CANBUS.cam, CS.eps_stock_values,
-                                                           ea_simulated_torque))
+      can_sends.append(self.CCS.create_eps_update(self.packer_pt, CANBUS.cam, CS.eps_stock_values, ea_simulated_torque))
 
     # **** Acceleration Controls ******************************************** #
 
