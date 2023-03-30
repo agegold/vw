@@ -1,26 +1,28 @@
 #!/usr/bin/env python3
 from cereal import car
-from selfdrive.car import STD_CARGO_KG, scale_rot_inertia, scale_tire_stiffness, gen_empty_fingerprint, get_safety_config
+from panda import Panda
+from selfdrive.car import STD_CARGO_KG, get_safety_config
 from selfdrive.car.interfaces import CarInterfaceBase
-from selfdrive.car.subaru.values import CAR, PREGLOBAL_CARS
+from selfdrive.car.subaru.values import CAR, GLOBAL_GEN2, PREGLOBAL_CARS
 
 
 class CarInterface(CarInterfaceBase):
 
   @staticmethod
-  def get_params(candidate, fingerprint=gen_empty_fingerprint(), car_fw=None, disable_radar=False):
-    ret = CarInterfaceBase.get_std_params(candidate, fingerprint)
-
+  def _get_params(ret, candidate, fingerprint, car_fw, experimental_long):
     ret.carName = "subaru"
-    ret.radarOffCan = True
+    ret.radarUnavailable = True
     ret.dashcamOnly = candidate in PREGLOBAL_CARS
+    ret.autoResumeSng = False
 
     if candidate in PREGLOBAL_CARS:
-      ret.safetyConfigs = [get_safety_config(car.CarParams.SafetyModel.subaruLegacy)]
       ret.enableBsm = 0x25c in fingerprint[0]
+      ret.safetyConfigs = [get_safety_config(car.CarParams.SafetyModel.subaruLegacy)]
     else:
-      ret.safetyConfigs = [get_safety_config(car.CarParams.SafetyModel.subaru)]
       ret.enableBsm = 0x228 in fingerprint[0]
+      ret.safetyConfigs = [get_safety_config(car.CarParams.SafetyModel.subaru)]
+      if candidate in GLOBAL_GEN2:
+        ret.safetyConfigs[0].safetyParam |= Panda.FLAG_SUBARU_GEN2
 
     ret.steerLimitTimer = 0.4
     ret.steerActuatorDelay = 0.1
@@ -68,6 +70,14 @@ class CarInterface(CarInterfaceBase):
       ret.lateralTuning.pid.kiBP, ret.lateralTuning.pid.kpBP = [[0., 14., 23.], [0., 14., 23.]]
       ret.lateralTuning.pid.kpV, ret.lateralTuning.pid.kiV = [[0.01, 0.065, 0.2], [0.001, 0.015, 0.025]]
 
+    elif candidate in (CAR.OUTBACK, CAR.LEGACY):
+      ret.mass = 1568. + STD_CARGO_KG
+      ret.wheelbase = 2.67
+      ret.centerToFront = ret.wheelbase * 0.5
+      ret.steerRatio = 17
+      ret.steerActuatorDelay = 0.1
+      CarInterfaceBase.configure_torque_tune(candidate, ret.lateralTuning)
+
     elif candidate in (CAR.FORESTER_PREGLOBAL, CAR.OUTBACK_PREGLOBAL_2018):
       ret.safetyConfigs[0].safetyParam = 1  # Outback 2018-2019 and Forester have reversed driver torque signal
       ret.mass = 1568 + STD_CARGO_KG
@@ -88,24 +98,19 @@ class CarInterface(CarInterfaceBase):
       ret.centerToFront = ret.wheelbase * 0.5
       ret.steerRatio = 20           # learned, 14 stock
 
-    # TODO: get actual value, for now starting with reasonable value for
-    # civic and scaling by mass and wheelbase
-    ret.rotationalInertia = scale_rot_inertia(ret.mass, ret.wheelbase)
-
-    # TODO: start from empirically derived lateral slip stiffness for the civic and scale by
-    # mass and CG position, so all cars will have approximately similar dyn behaviors
-    ret.tireStiffnessFront, ret.tireStiffnessRear = scale_tire_stiffness(ret.mass, ret.wheelbase, ret.centerToFront)
+    else:
+      raise ValueError(f"unknown car: {candidate}")
 
     return ret
 
   # returns a car.CarState
   def _update(self, c):
 
-    ret = self.CS.update(self.cp, self.cp_cam)
+    ret = self.CS.update(self.cp, self.cp_cam, self.cp_body)
 
     ret.events = self.create_common_events(ret).to_msg()
 
     return ret
 
-  def apply(self, c):
-    return self.CC.update(c, self.CS)
+  def apply(self, c, now_nanos):
+    return self.CC.update(c, self.CS, now_nanos)

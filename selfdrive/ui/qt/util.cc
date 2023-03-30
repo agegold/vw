@@ -2,11 +2,14 @@
 
 #include <QApplication>
 #include <QFile>
+#include <QHash>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QLayoutItem>
 #include <QStyleOption>
 #include <QPainterPath>
+#include <QTextStream>
+#include <QtXml/QDomDocument>
 
 #include "common/params.h"
 #include "common/swaglog.h"
@@ -19,10 +22,6 @@ QString getVersion() {
 
 QString getBrand() {
   return Params().getBool("Passive") ? QObject::tr("dashcam") : QObject::tr("openpilot");
-}
-
-QString getBrandVersion() {
-  return getBrand() + " v" + getVersion().left(14).trimmed();
 }
 
 QString getUserAgent() {
@@ -79,13 +78,13 @@ QString timeAgo(const QDateTime &date) {
     s = "now";
   } else if (diff < 60 * 60) {
     int minutes = diff / 60;
-    s = QObject::tr("%1 minute%2 ago").arg(minutes).arg(minutes > 1 ? "s" : "");
+    s = QObject::tr("%n minute(s) ago", "", minutes);
   } else if (diff < 60 * 60 * 24) {
     int hours = diff / (60 * 60);
-    s = QObject::tr("%1 hour%2 ago").arg(hours).arg(hours > 1 ? "s" : "");
+    s = QObject::tr("%n hour(s) ago", "", hours);
   } else if (diff < 3600 * 24 * 7) {
     int days = diff / (60 * 60 * 24);
-    s = QObject::tr("%1 day%2 ago").arg(days).arg(days > 1 ? "s" : "");
+    s = QObject::tr("%n day(s) ago", "", days);
   } else {
     s = date.date().toString();
   }
@@ -106,9 +105,18 @@ void setQtSurfaceFormat() {
   QSurfaceFormat::setDefaultFormat(fmt);
 }
 
+void sigTermHandler(int s) {
+  std::signal(s, SIG_DFL);
+  qApp->quit();
+}
+
 void initApp(int argc, char *argv[]) {
   Hardware::set_display_power(true);
   Hardware::set_brightness(65);
+
+  // setup signal handlers to exit gracefully
+  std::signal(SIGINT, sigTermHandler);
+  std::signal(SIGTERM, sigTermHandler);
 
 #ifdef __APPLE__
   {
@@ -153,7 +161,7 @@ QPixmap loadPixmap(const QString &fileName, const QSize &size, Qt::AspectRatioMo
   }
 }
 
-QRect getTextRect(QPainter &p, int flags, QString text) {
+QRect getTextRect(QPainter &p, int flags, const QString &text) {
   QFontMetrics fm(p.font());
   QRect init_rect = fm.boundingRect(text);
   return fm.boundingRect(init_rect, flags, text);
@@ -212,4 +220,38 @@ QColor interpColor(float xv, std::vector<float> xp, std::vector<QColor> fp) {
       (xv - xp[low]) * (fp[hi].alpha() - fp[low].alpha()) / (xp[hi] - xp[low]) + fp[low].alpha()
     );
   }
+}
+
+static QHash<QString, QByteArray> load_bootstrap_icons() {
+  QHash<QString, QByteArray> icons;
+
+  QFile f(":/bootstrap-icons.svg");
+  if (f.open(QIODevice::ReadOnly | QIODevice::Text)) {
+    QDomDocument xml;
+    xml.setContent(&f);
+    QDomNode n = xml.documentElement().firstChild();
+    while (!n.isNull()) {
+      QDomElement e = n.toElement();
+      if (!e.isNull() && e.hasAttribute("id")) {
+        QString svg_str;
+        QTextStream stream(&svg_str);
+        n.save(stream, 0);
+        svg_str.replace("<symbol", "<svg");
+        svg_str.replace("</symbol>", "</svg>");
+        icons[e.attribute("id")] = svg_str.toUtf8();
+      }
+      n = n.nextSibling();
+    }
+  }
+  return icons;
+}
+
+QPixmap bootstrapPixmap(const QString &id) {
+  static QHash<QString, QByteArray> icons = load_bootstrap_icons();
+
+  QPixmap pixmap;
+  if (auto it = icons.find(id); it != icons.end()) {
+    pixmap.loadFromData(it.value(), "svg");
+  }
+  return pixmap;
 }
