@@ -63,7 +63,7 @@ def create_acc_accel_control(packer, bus, acc_type, enabled, accel, acc_control,
 
   if starting:
     acc_hold_type = 4  # hold release / startup
-    jerk_limit = 0.5
+    jerk_limit = 0.3
   elif esp_hold:
     acc_hold_type = 3  # hold standby
   elif stopping:
