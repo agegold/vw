@@ -72,7 +72,7 @@ class UploadFile:
 
   @classmethod
   def from_dict(cls, d: Dict) -> UploadFile:
-    return cls(d.get("fn", ""), d.get("url", ""), d.get("headers", {}), d.get("allow_cellular", False))
+    return cls(d.get("fn", ""), d.get("url", ""), d.get("headers", {}), d.get("allow_cellular", True))
 
 
 @dataclass
@@ -85,7 +85,7 @@ class UploadItem:
   retry_count: int = 0
   current: bool = False
   progress: float = 0
-  allow_cellular: bool = False
+  allow_cellular: bool = True
 
   @classmethod
   def from_dict(cls, d: Dict) -> UploadItem:
@@ -231,17 +231,17 @@ def upload_handler(end_event: threading.Event) -> None:
       sm.update(0)
       metered = sm['deviceState'].networkMetered
       network_type = sm['deviceState'].networkType.raw
-      if metered and (not item.allow_cellular):
-        retry_upload(tid, end_event, False)
-        continue
+      #if metered and (not item.allow_cellular):
+      #  retry_upload(tid, end_event, False)
+      #  continue
 
       try:
         def cb(sz: int, cur: int) -> None:
           # Abort transfer if connection changed to metered after starting upload
           sm.update(0)
-          metered = sm['deviceState'].networkMetered
-          if metered and (not item.allow_cellular):
-            raise AbortTransferException
+          #metered = sm['deviceState'].networkMetered
+          #if metered and (not item.allow_cellular):
+          #  raise AbortTransferException
 
           cur_upload_items[tid] = replace(item, progress=cur / sz if sz else 1)
 
