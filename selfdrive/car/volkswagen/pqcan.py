@@ -59,18 +59,18 @@ def acc_hud_status_value(main_switch_on, acc_faulted, long_active):
   return hud_status
 
 
-def create_acc_accel_control(packer, bus, acc_type, long_active, accel, acc_control, stopping, starting, esp_hold):
+def create_acc_accel_control(packer, bus, acc_type, acc_enabled, accel, acc_control, stopping, starting, esp_hold):
   commands = []
 
   values = {
     "ACS_Sta_ADR": acc_control,
-    "ACS_StSt_Info": long_active,
+    "ACS_StSt_Info": acc_enabled,
     "ACS_Typ_ACC": acc_type,
     "ACS_Anhaltewunsch": acc_type == 1 and stopping,
-    "ACS_FreigSollB": long_active,
-    "ACS_Sollbeschl": accel if long_active else 3.01,
-    "ACS_zul_Regelabw": 0.2 if long_active else 1.27,
-    "ACS_max_AendGrad": 3.0 if long_active else 5.08,
+    "ACS_FreigSollB": acc_enabled,
+    "ACS_Sollbeschl": accel if acc_enabled else 3.01,
+    "ACS_zul_Regelabw": 0.2 if acc_enabled else 1.27,
+    "ACS_max_AendGrad": 3.0 if acc_enabled else 5.08,
   }
 
   commands.append(packer.make_can_msg("ACC_System", bus, values))
