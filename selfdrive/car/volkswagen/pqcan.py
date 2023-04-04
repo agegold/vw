@@ -67,6 +67,7 @@ def create_acc_accel_control(packer, bus, acc_type, long_active, accel, acc_cont
     "ACS_StSt_Info": long_active,
     "ACS_Typ_ACC": acc_type,
     "ACS_Anhaltewunsch": long_active and stopping,
+    "ACS_FreigSollB": long_active,
     "ACS_Sollbeschl": accel if long_active else 3.01,
     "ACS_zul_Regelabw": 0.2 if long_active else 1.27,
     "ACS_max_AendGrad": 3.0 if long_active else 5.08,
